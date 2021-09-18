@@ -11,15 +11,17 @@ weight : used for weighted Jacobi and SOR (floating)
 """
 
 import numpy,time
+from scipy import sparse
+from scipy.sparse import linalg
 
 ##################################################
 
 #weighted Jacobi iteration method
-def wJacobi(A,b,x0=None,Imax=10000,eps=1e-3,weight=1):
+def wJacobi(A,b,x0=None,Imax=1000,eps=1e-3,weight=1):
     t1 = time.time()
     if x0 is None:
         x0 = numpy.zeros_like(b)
-    x = numpy.array(x0 ,dtype=numpy.float64)
+    x = numpy.array(x0 ,dtype=numpy.float32)
     A = numpy.array(A)
     b = numpy.array(b)
     D = numpy.diag(numpy.diag(A))
@@ -57,17 +59,23 @@ def wJacobi(A,b,x0=None,Imax=10000,eps=1e-3,weight=1):
 ##################################################
 
 #weighted Gauss-Seidel iteration method(SOR)
-def SOR(A,b,x0=None,Imax=10000,eps=1e-3,weight=1):
+def SOR(A,b,x0=None,Imax=1000,eps=1e-3,weight=1,progress=False):
     t1 = time.time()
     if x0 is None:
         x0 = numpy.zeros_like(b)
-    x = numpy.array(x0 ,dtype=numpy.float64)
-    A = numpy.array(A)
+    x = numpy.array(x0 ,dtype=numpy.float16)
     b = numpy.array(b)
-    D = numpy.diag(numpy.diag(A))
-    L = -numpy.tril(A,-1)
-    U = -numpy.triu(A,1)
-    invDL = numpy.linalg.inv(D-L)
+    if sparse.issparse(A):
+        D = sparse.diags(A.diagonal())
+        L = -sparse.tril(A,-1)
+        U = -sparse.triu(A,1)
+        invDL = linalg.spsolve_triangular(D-L,numpy.eye(len(b)))
+    else:
+        A = numpy.array(A)
+        D = numpy.diag(numpy.diag(A))
+        L = -numpy.tril(A,-1)
+        U = -numpy.triu(A,1)
+        invDL = numpy.linalg.inv(D-L)
     
     # option : approximate exceeded time (part1)
     count = 0
@@ -75,7 +83,7 @@ def SOR(A,b,x0=None,Imax=10000,eps=1e-3,weight=1):
     t2 = time.time()
     
     for k in range(Imax):
-        
+
         # option : approximate exceeded time (part2)
         if not p:
             if time.time()-t2>3:
@@ -89,23 +97,27 @@ def SOR(A,b,x0=None,Imax=10000,eps=1e-3,weight=1):
         x = (1-weight)*x_old+weight*x
         diffSol = numpy.linalg.norm(x-x_old)
         residue = numpy.linalg.norm(b-A.dot(x))
+        
+        if progress:
+            if (k+1)%(50*Imax//len(b)+1)==0:
+                print(k+1,'diffSol = ',diffSol,'residue = ',residue)
         if diffSol<eps:
-            print('solution dosen\'t change')
+            print('SOR solution dosen\'t change')
             return x
         if residue<eps:
-            print('solution converges')
+            print('SOR solution converges')
             return x
-    print('exceed iteration')
+    print('SOR exceed iteration')
     return x
 
 ##################################################
 
 #Gradiant method
-def GM(A,b,x0=None,Imax=10000,eps=1e-3):
+def GM(A,b,x0=None,Imax=1000,eps=1e-3):
     t1 = time.time()
     if x0 is None:
         x0 = numpy.zeros_like(b)
-    x = numpy.array(x0 ,dtype=numpy.float64)
+    x = numpy.array(x0 ,dtype=numpy.float32)
     A = numpy.array(A)
     b = numpy.array(b)
     h = b-A.dot(x)
@@ -143,7 +155,7 @@ def GM(A,b,x0=None,Imax=10000,eps=1e-3):
 ##################################################
 
 #conjugate gradiant method
-def CG(A,b,x0=None,Imax=10000,eps=1e-3):
+def CG(A,b,x0=None,Imax=1000,eps=1e-3):
     t1 = time.time()
     if x0 is None:
         x0 = numpy.zeros_like(b)
@@ -159,7 +171,6 @@ def CG(A,b,x0=None,Imax=10000,eps=1e-3):
     p = False
     t2 = time.time()
     for k in range(Imax):
-        
         # option : approximate exceeded time (part2)
         if not p:
             if time.time()-t2>1:
