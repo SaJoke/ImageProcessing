@@ -8,9 +8,12 @@ from scipy import sparse
 #img : image (array)
 #percent : percent of noise (0-100)
 #return : noisy image
-def addnoise(img,percent=10):
-    noise = numpy.random.normal(0,percent*0.85,img.shape)
-    return numpy.uint8(numpy.clip(noise+numpy.float64(img),0,255))
+def addnoise(img,std=1,per=0.05):
+    noise = numpy.random.normal(0,std,img.shape)
+    #z = u+k0*u*noise
+    img_float = numpy.float64(img)
+    noise_img = numpy.uint8(numpy.clip(img_float+per*img_float*noise,0,255))
+    return noise_img
 
 ####################################################
 
