@@ -3,6 +3,7 @@ Operation on grayscale image
 '''
 import numpy
 from scipy import sparse
+from math import ceil, floor
 
 '''adding noise'''
 #img : image (array)
@@ -18,7 +19,7 @@ def addnoise(img,std=1,per=0.05):
 ####################################################
 
 #Find A for denoising diffusion
-def denoise_diff(img_shape,alpha,tosparse=False):
+def diffusion_array(img_shape,alpha,tosparse=False):
     m , n = img_shape
     Ac = 4*alpha*numpy.ones((m,n))+1
     Au = -alpha*numpy.ones((m,n))
@@ -39,12 +40,75 @@ def denoise_diff(img_shape,alpha,tosparse=False):
     return A
     
 ####################################################
+#Affine transform with Ab = A*(img_coordinate)+b
+def AFT(img,Ab):
+    img = numpy.array(img)
+    Ab = numpy.array(Ab)
+    shape = img.shape
+    height = shape[0]
+    width = shape[1]
+    TransImg = numpy.zeros(img.shape, numpy.uint8)
+    for i in range(height):
+        for j in range(width):
+            coList = Ab[:,:-1].dot(numpy.array([i,j]))+Ab[:,-1]
+            x,y = coList[0],coList[1]
 
-#def PSNR(img1,img2):
+            #Biliner Interpolation
+            if x>=0 and x<=height-1 and y>=0 and y<=width-1:            
+                cx = ceil(x)
+                fx = floor(x)
+                cy = ceil(y)
+                fy = floor(y)
+                if cx==fx:
+                    dxf = 1/2
+                    dxb = 1/2
+                else:
+                    dxf = cx-x
+                    dxb = x-fx
+                if cy==fy:
+                    dyf = 1/2
+                    dyb = 1/2
+                else:
+                    dyf = cy-y
+                    dyb = y-fy
+                TransImg[i][j] = dyb*dxb*img[cx][cy]+dyb*dxf*img[fx][cy]+dyf*dxb*img[cx][fy]+dyf*dxf*img[fx][fy]
+    return TransImg    
     
-    
-    
-    
+####################################################
+
+def warp_vec(img,vec_field,up=0,left=0,right=0,down=0):
+    #shape of vec_field is (2,m+up+down,n+left+right) where m,n = imag.shape
+    #extended up,left,right,down border
+    shape = img.shape
+    m,n = shape
+    hight = m+up+down
+    width = n+left+right
+    WarpImg = numpy.zeros((hight,width))
+    for i in range(hight):
+        for j in range(width):
+            x = i-up+vec_field[0,i,j]
+            y = j-left+vec_field[1,i,j]
+
+            #Biliner Interpolation
+            if x>=0 and x<=m-1 and y>=0 and y<=n-1:            
+                cx = ceil(x)
+                fx = floor(x)
+                cy = ceil(y)
+                fy = floor(y)
+                if cx==fx:
+                    dxf = 1/2
+                    dxb = 1/2
+                else:
+                    dxf = cx-x
+                    dxb = x-fx
+                if cy==fy:
+                    dyf = 1/2
+                    dyb = 1/2
+                else:
+                    dyf = cy-y
+                    dyb = y-fy
+                WarpImg[i][j] = dyb*dxb*img[cx][cy]+dyb*dxf*img[fx][cy]+dyf*dxb*img[cx][fy]+dyf*dxf*img[fx][fy]
+    return WarpImg    
     
     
     
