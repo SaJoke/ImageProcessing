@@ -1,7 +1,7 @@
 '''
 Operation on grayscale image
 '''
-import numpy
+import numpy, cv2
 from scipy import sparse
 from math import ceil, floor
 
@@ -110,10 +110,28 @@ def warp_vec(img,vec_field,up=0,left=0,right=0,down=0):
                 WarpImg[i][j] = dyb*dxb*img[cx][cy]+dyb*dxf*img[fx][cy]+dyf*dxb*img[cx][fy]+dyf*dxf*img[fx][fy]
     return WarpImg    
     
+####################################################
+
+def grid_array(img_shape,nv=10,nh=10):
+    m,n = img_shape
+    grid = numpy.zeros((m,n))
+    for i in range(1,nv):
+        grid[i*m//nv,:] = numpy.ones_like(grid[i*m//nv,:])
+    for j in range(1,nh):  
+        grid[:,j*n//nh] = numpy.ones_like(grid[:,j*n//nh]) 
+    return grid
     
+def vec_field_array(img_shape,vec_field,nv=10,nh=10):
+    m,n = img_shape
+    vecField = 255*numpy.ones((m,n))
     
-    
-    
+    for i in range(1,nv):
+        for j in range(1,nh):
+            tail = (floor(0.5+j*n//nh+vec_field[1,i*m//nv,j*n//nh]),floor(0.5+i*m//nv+vec_field[0,i*m//nv,j*n//nh]))
+            head = (j*n//nh,i*m//nv)
+            if not tail==head:
+                cv2.arrowedLine(vecField,tail,head,(0,0,0),1,8,0,0.4)
+    return vecField
     
     
     
