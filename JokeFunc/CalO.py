@@ -30,5 +30,6 @@ def diff2D(A,axis=0,forward=True,bc=None):
         dx = numpy.transpose(dx)
     return dx
     
+####################################################
     
 
