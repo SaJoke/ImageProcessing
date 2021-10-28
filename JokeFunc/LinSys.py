@@ -68,22 +68,22 @@ def SOR(A,b,x0=None,Imax=1000,eps=1e-3,weight=1,progress=False):
     t1 = time.time()
     if x0 is None:
         x0 = numpy.zeros_like(b)
-    x = numpy.array(x0 ,dtype=numpy.float16)
+    x = numpy.array(x0 ,dtype=numpy.float32)
     b = numpy.array(b)
     if sparse.issparse(A):
         D = sparse.diags(A.diagonal())
         L = -sparse.tril(A,-1)
         U = -sparse.triu(A,1)
         invDL = linalg.spsolve_triangular(D-L,numpy.eye(len(b)))
-        U = U.toarray()
+        T = invDL*U
     else:
         A = numpy.array(A)
         D = numpy.diag(numpy.diag(A))
         L = -numpy.tril(A,-1)
         U = -numpy.triu(A,1)
         invDL = numpy.linalg.inv(D-L)
+        T = invDL.dot(U)
     
-    T = invDL.dot(U)
     c = invDL.dot(b)
     res0 = numpy.linalg.norm(b-A.dot(x))
     # option : approximate exceeded time (part1)
@@ -94,12 +94,13 @@ def SOR(A,b,x0=None,Imax=1000,eps=1e-3,weight=1,progress=False):
     for k in range(Imax):
 
         # option : approximate exceeded time (part2)
-        if not p:
-            if time.time()-t2>3:
-                p = True
-                et = Imax*(time.time()-t2)/count
-                print('max time ~',et+t2-t1) #expected time until exceed iteration
-        count+=1
+        if progress:
+            if not p:
+                if time.time()-t2>3:
+                    p = True
+                    et = Imax*(time.time()-t2)/count
+                    print('SOR max time ~',et+t2-t1) #expected time until exceed iteration
+            count+=1
         
         x_old = x.copy()
         x = T.dot(x)+c #x=inv(D-L)*(Ux+b)        
@@ -110,13 +111,14 @@ def SOR(A,b,x0=None,Imax=1000,eps=1e-3,weight=1,progress=False):
         if progress:
             if (k+1)%(100*Imax//len(b)+1)==0:
                 print(k+1,'diffSol = ',diffSol,'residue = ',residue)
-        if diffSol<eps:
-            print('SOR solution dosen\'t change')
-            return x
-        if residue<eps:
-            print('SOR solution converges')
-            return x
-    print('SOR exceed iteration')
+            if diffSol<eps:
+                print('SOR solution dosen\'t change')
+                return x
+            if residue<eps:
+                print('SOR solution converges')
+                return x
+            if k==Imax-1:
+                print('SOR exceed iteration')
     return x
 
 ##################################################
